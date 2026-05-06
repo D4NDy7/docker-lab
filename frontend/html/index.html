@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Manager</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 620px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    .status-bar {
+      font-size: 0.75rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      color: #888;
+    }
+
+    .add-form {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .add-form input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .add-form input:focus { border-color: #4f46e5; }
+
+    .add-form button {
+      padding: 0.75rem 1.25rem;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .add-form button:hover { background: #4338ca; }
+
+    .task-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .task {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #fff;
+      border-radius: 12px;
+      padding: 0.9rem 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      transition: opacity 0.2s;
+    }
+
+    .task.done { opacity: 0.55; }
+    .task.done .task-title { text-decoration: line-through; color: #888; }
+
+    .task-check {
+      width: 22px; height: 22px;
+      border: 2px solid #4f46e5;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    .task.done .task-check { background: #4f46e5; }
+    .task.done .task-check::after { content: '✓'; color: #fff; font-size: 13px; font-weight: 700; }
+
+    .task-title { flex: 1; font-size: 0.98rem; color: #1a1a2e; }
+
+    .task-meta { font-size: 0.72rem; color: #aaa; white-space: nowrap; }
+
+    .btn-delete {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0 4px;
+      transition: color 0.15s;
+    }
+
+    .btn-delete:hover { color: #ef4444; }
+
+    .empty { text-align: center; color: #aaa; padding: 2rem; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 Task Manager</h1>
+    <div class="status-bar" id="status">Загрузка...</div>
+
+    <div class="add-form">
+      <input type="text" id="newTask" placeholder="Новая задача..." />
+      <button onclick="addTask()">Добавить</button>
+    </div>
+
+    <div class="task-list" id="taskList"></div>
+  </div>
+
+  <script>
+    const API = '/api';
+
+    async function loadTasks() {
+      try {
+        const res = await fetch(`${API}/tasks`);
+        const tasks = await res.json();
+        renderTasks(tasks);
+        setStatus(`Задач: ${tasks.length}`);
+      } catch (e) {
+        setStatus('Ошибка подключения к API');
+      }
+    }
+
+    function renderTasks(tasks) {
+      const list = document.getElementById('taskList');
+      if (!tasks.length) {
+        list.innerHTML = '<div class="empty">Задач пока нет. Добавьте первую!</div>';
+        return;
+      }
+      list.innerHTML = tasks.map(t => `
+        <div class="task ${t.done ? 'done' : ''}" id="task-${t.id}">
+          <div class="task-check" onclick="toggleTask(${t.id})"></div>
+          <span class="task-title">${escHtml(t.title)}</span>
+          <span class="task-meta">${formatDate(t.created_at)}</span>
+          <button class="btn-delete" onclick="deleteTask(${t.id})" title="Удалить">✕</button>
+        </div>
+      `).join('');
+    }
+
+    async function addTask() {
+      const input = document.getElementById('newTask');
+      const title = input.value.trim();
+      if (!title) return;
+      try {
+        await fetch(`${API}/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title })
+        });
+        input.value = '';
+        loadTasks();
+      } catch (e) { alert('Ошибка при добавлении задачи'); }
+    }
+
+    async function toggleTask(id) {
+      try {
+        await fetch(`${API}/tasks/${id}`, { method: 'PATCH' });
+        loadTasks();
+      } catch (e) { alert('Ошибка при обновлении задачи'); }
+    }
+
+    async function deleteTask(id) {
+      try {
+        await fetch(`${API}/tasks/${id}`, { method: 'DELETE' });
+        loadTasks();
+      } catch (e) { alert('Ошибка при удалении задачи'); }
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    }
+
+    function setStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    document.getElementById('newTask').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addTask();
+    });
+
+    loadTasks();
+  </script>
+</body>
+</html>
