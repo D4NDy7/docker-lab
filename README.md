@@ -137,8 +137,8 @@ curl http://localhost/api/tasks
 ### Результаты теста
 
 1. Запущен стек, добавлены задачи через UI и curl
-2. `docker compose down` → `docker compose up -d` — задачи сохранились ✅
-3. `docker compose down -v` → `docker compose up -d` — БД пустая ✅
+2. `docker compose down` → `docker compose up -d` — задачи сохранились
+3. `docker compose down -v` → `docker compose up -d` — БД пустая
 
 ---
 
